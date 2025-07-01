@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Golf League Standings</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Golf League Standings</h1>
+
+  <section id="players-setup">
+    <h2>Enter Player Names</h2>
+    <div id="player-names"></div>
+    <button onclick="initializePlayers()">Start Season</button>
+  </section>
+
+  <section id="score-entry" style="display:none;">
+    <h2>Enter Scores for New Round</h2>
+    <div id="score-form"></div>
+    <button onclick="addRound()">Add Round</button>
+  </section>
+
+  <section id="standings" style="display:none;">
+    <h2>Current Standings</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Player</th>
+          <th>Total Points</th>
+          <th>Scores</th>
+        </tr>
+      </thead>
+      <tbody id="standings-body"></tbody>
+    </table>
+  </section>
+
+  <script>
+    let players = [];
+    let rounds = [];
+
+    function initializePlayers() {
+      const inputs = document.querySelectorAll('.player-input');
+      players = Array.from(inputs).map(input => ({
+        name: input.value.trim() || 'Unnamed',
+        totalPoints: 0,
+        scores: []
+      }));
+      document.getElementById('players-setup').style.display = 'none';
+      document.getElementById('score-entry').style.display = 'block';
+      document.getElementById('standings').style.display = 'block';
+      updateScoreForm();
+      updateStandings();
+    }
+
+    function updateScoreForm() {
+      const container = document.getElementById('score-form');
+      container.innerHTML = '';
+      players.forEach((player, i) => {
+        container.innerHTML += `<label>${player.name}: <input type="number" id="score-${i}" /></label><br />`;
+      });
+    }
+
+    function addRound() {
+      const scores = players.map((_, i) => ({
+        index: i,
+        score: parseFloat(document.getElementById(`score-${i}`).value) || 0
+      }));
+
+      scores.sort((a, b) => b.score - a.score);
+
+      const pointsMap = [4, 3, 2, 1];
+      scores.forEach((entry, rank) => {
+        const player = players[entry.index];
+        const points = pointsMap[rank] || 0;
+        player.totalPoints += points;
+        player.scores.push(entry.score);
+      });
+
+      updateStandings();
+      updateScoreForm();
+    }
+
+    function updateStandings() {
+      const body = document.getElementById('standings-body');
+      body.innerHTML = '';
+      players
+        .sort((a, b) => b.totalPoints - a.totalPoints)
+        .forEach(player => {
+          body.innerHTML += `
+            <tr>
+              <td>${player.name}</td>
+              <td>${player.totalPoints}</td>
+              <td>${player.scores.join(', ')}</td>
+            </tr>`;
+        });
+    }
+
+    // Initial setup UI for 4 players
+    window.onload = () => {
+      const container = document.getElementById('player-names');
+      for (let i = 0; i < 4; i++) {
+        container.innerHTML += `<label>Player ${i + 1}: <input class="player-input" /></label><br />`;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -43,8 +43,13 @@
   </section>
 
   <script>
-    let players = [];
-    let rounds = [];
+    let players = JSON.parse(localStorage.getItem('players')) || [];
+    let rounds = JSON.parse(localStorage.getItem('rounds')) || [];
+
+    function saveData() {
+      localStorage.setItem('players', JSON.stringify(players));
+      localStorage.setItem('rounds', JSON.stringify(rounds));
+    }
 
     function initializePlayers() {
       const inputs = document.querySelectorAll('.player-input');
@@ -59,6 +64,8 @@
       document.getElementById('rounds-log').style.display = 'block';
       updateScoreForm();
       updateStandings();
+      updateRoundsLog();
+      saveData();
     }
 
     function updateScoreForm() {
@@ -77,7 +84,6 @@
         score: parseFloat(document.getElementById(`score-${i}`).value) || 0
       }));
 
-      // Sort from lowest to highest (low score is better in golf)
       scores.sort((a, b) => a.score - b.score);
 
       const pointsMap = [4, 3, 2, 1];
@@ -90,7 +96,7 @@
         const player = players[entry.index];
         let points = pointsMap[rank] || 0;
         if (isMajor && rank === 0) {
-          points = Math.round(points * 1.5); // 1.5x for 1st place only
+          points = Math.round(points * 1.5);
         }
         player.totalPoints += points;
         player.scores.push(entry.score);
@@ -102,6 +108,7 @@
       updateStandings();
       updateScoreForm();
       updateRoundsLog();
+      saveData();
       document.getElementById('tournament-name').value = '';
       document.getElementById('is-major').checked = false;
     }
@@ -132,11 +139,20 @@
       });
     }
 
-    // Initial setup UI for 4 players
     window.onload = () => {
       const container = document.getElementById('player-names');
-      for (let i = 0; i < 4; i++) {
-        container.innerHTML += `<label>Player ${i + 1}: <input class="player-input" /></label><br />`;
+      if (players.length === 0) {
+        for (let i = 0; i < 4; i++) {
+          container.innerHTML += `<label>Player ${i + 1}: <input class="player-input" /></label><br />`;
+        }
+      } else {
+        document.getElementById('players-setup').style.display = 'none';
+        document.getElementById('score-entry').style.display = 'block';
+        document.getElementById('standings').style.display = 'block';
+        document.getElementById('rounds-log').style.display = 'block';
+        updateScoreForm();
+        updateStandings();
+        updateRoundsLog();
       }
     }
   </script>

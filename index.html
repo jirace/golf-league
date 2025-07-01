@@ -42,6 +42,11 @@
     <div id="rounds-history"></div>
   </section>
 
+  <section id="season-controls" style="margin-top: 2em;">
+    <h2>Season Controls</h2>
+    <button onclick="resetSeason()">Reset Season</button>
+  </section>
+
   <script>
     let players = JSON.parse(localStorage.getItem('players')) || [];
     let rounds = JSON.parse(localStorage.getItem('rounds')) || [];
@@ -76,6 +81,41 @@
       });
     }
 
+    function getPointsMap(playerCount) {
+      return Array.from({ length: playerCount }, (_, i) => Math.max(playerCount - i, 0));
+    }
+
+    function recalculateStandings() {
+      players.forEach(p => {
+        p.totalPoints = 0;
+        p.scores = [];
+      });
+
+      rounds.forEach(round => {
+        const temp = round.results.map((r, i) => {
+          return {
+            index: players.findIndex(p => p.name === r.name),
+            score: r.score
+          };
+        });
+
+        temp.sort((a, b) => a.score - b.score);
+        const pointsMap = getPointsMap(temp.length);
+
+        temp.forEach((entry, rank) => {
+          let points = pointsMap[rank] || 0;
+          if (round.name.includes('(Major)')) points = Math.round(points * 1.5);
+          if (entry.index !== -1) {
+            players[entry.index].totalPoints += points;
+            players[entry.index].scores.push(entry.score);
+            round.results.find(r => r.name === players[entry.index].name).points = points;
+          }
+        });
+      });
+
+      saveData();
+    }
+
     function addRound() {
       const tournamentName = document.getElementById('tournament-name').value.trim() || `Round ${rounds.length + 1}`;
       const isMajor = document.getElementById('is-major').checked;
@@ -86,7 +126,7 @@
 
       scores.sort((a, b) => a.score - b.score);
 
-      const pointsMap = [4, 3, 2, 1];
+      const pointsMap = getPointsMap(scores.length);
       const roundResult = {
         name: tournamentName + (isMajor ? ' (Major)' : ''),
         results: []
@@ -95,22 +135,55 @@
       scores.forEach((entry, rank) => {
         const player = players[entry.index];
         let points = pointsMap[rank] || 0;
-        if (isMajor && rank === 0) {
-          points = Math.round(points * 1.5);
-        }
+        if (isMajor) points = Math.round(points * 1.5);
         player.totalPoints += points;
         player.scores.push(entry.score);
         roundResult.results.push({ name: player.name, score: entry.score, points });
       });
 
       rounds.push(roundResult);
-
       updateStandings();
       updateScoreForm();
       updateRoundsLog();
       saveData();
       document.getElementById('tournament-name').value = '';
       document.getElementById('is-major').checked = false;
+    }
+
+    function deleteRound(index) {
+      rounds.splice(index, 1);
+      recalculateStandings();
+      updateStandings();
+      updateRoundsLog();
+    }
+
+    function deletePlayerScore(roundIndex, playerName) {
+      const round = rounds[roundIndex];
+      round.results = round.results.filter(r => r.name !== playerName);
+      recalculateStandings();
+      updateStandings();
+      updateRoundsLog();
+    }
+
+    function editScore(roundIndex, playerName) {
+      const newScore = prompt("Enter new score for " + playerName);
+      if (newScore === null) return;
+      const round = rounds[roundIndex];
+      const playerResult = round.results.find(r => r.name === playerName);
+      if (playerResult) playerResult.score = parseFloat(newScore);
+      recalculateStandings();
+      updateStandings();
+      updateRoundsLog();
+    }
+
+    function renameTournament(roundIndex) {
+      const newName = prompt("Enter new tournament name:", rounds[roundIndex].name);
+      if (newName !== null) {
+        rounds[roundIndex].name = newName;
+        recalculateStandings();
+        updateRoundsLog();
+        saveData();
+      }
     }
 
     function updateStandings() {
@@ -131,12 +204,20 @@
     function updateRoundsLog() {
       const container = document.getElementById('rounds-history');
       container.innerHTML = '';
-      rounds.forEach(round => {
-        container.innerHTML += `<h3>${round.name}</h3>`;
+      rounds.forEach((round, roundIndex) => {
+        container.innerHTML += `<h3>${round.name} <button onclick="renameTournament(${roundIndex})">Rename</button> <button onclick="deleteRound(${roundIndex})">Delete Tournament</button></h3>`;
         container.innerHTML += '<ul>' +
-          round.results.map(r => `<li>${r.name}: ${r.score} (Points: ${r.points})</li>`).join('') +
+          round.results.map(r => `<li>${r.name}: ${r.score} (Points: ${r.points}) <button onclick="editScore(${roundIndex}, '${r.name}')">Edit</button> <button onclick="deletePlayerScore(${roundIndex}, '${r.name}')">Delete</button></li>`).join('') +
           '</ul>';
       });
+    }
+
+    function resetSeason() {
+      if (confirm("Are you sure you want to reset the season? This will erase all data.")) {
+        localStorage.removeItem('players');
+        localStorage.removeItem('rounds');
+        location.reload();
+      }
     }
 
     window.onload = () => {
@@ -151,6 +232,7 @@
         document.getElementById('standings').style.display = 'block';
         document.getElementById('rounds-log').style.display = 'block';
         updateScoreForm();
+        recalculateStandings();
         updateStandings();
         updateRoundsLog();
       }

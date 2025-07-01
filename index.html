@@ -16,9 +16,11 @@
   </section>
 
   <section id="score-entry" style="display:none;">
-    <h2>Enter Scores for New Round</h2>
+    <h2>Enter Scores for New Tournament</h2>
+    <label>Tournament Name: <input type="text" id="tournament-name" /></label>
+    <label><input type="checkbox" id="is-major" /> Major Tournament</label>
     <div id="score-form"></div>
-    <button onclick="addRound()">Add Round</button>
+    <button onclick="addRound()">Add Tournament</button>
   </section>
 
   <section id="standings" style="display:none;">
@@ -35,6 +37,11 @@
     </table>
   </section>
 
+  <section id="rounds-log" style="display:none;">
+    <h2>Tournament Results</h2>
+    <div id="rounds-history"></div>
+  </section>
+
   <script>
     let players = [];
     let rounds = [];
@@ -49,6 +56,7 @@
       document.getElementById('players-setup').style.display = 'none';
       document.getElementById('score-entry').style.display = 'block';
       document.getElementById('standings').style.display = 'block';
+      document.getElementById('rounds-log').style.display = 'block';
       updateScoreForm();
       updateStandings();
     }
@@ -62,23 +70,40 @@
     }
 
     function addRound() {
+      const tournamentName = document.getElementById('tournament-name').value.trim() || `Round ${rounds.length + 1}`;
+      const isMajor = document.getElementById('is-major').checked;
       const scores = players.map((_, i) => ({
         index: i,
         score: parseFloat(document.getElementById(`score-${i}`).value) || 0
       }));
 
-      scores.sort((a, b) => b.score - a.score);
+      // Sort from lowest to highest (low score is better in golf)
+      scores.sort((a, b) => a.score - b.score);
 
       const pointsMap = [4, 3, 2, 1];
+      const roundResult = {
+        name: tournamentName + (isMajor ? ' (Major)' : ''),
+        results: []
+      };
+
       scores.forEach((entry, rank) => {
         const player = players[entry.index];
-        const points = pointsMap[rank] || 0;
+        let points = pointsMap[rank] || 0;
+        if (isMajor && rank === 0) {
+          points = Math.round(points * 1.5); // 1.5x for 1st place only
+        }
         player.totalPoints += points;
         player.scores.push(entry.score);
+        roundResult.results.push({ name: player.name, score: entry.score, points });
       });
+
+      rounds.push(roundResult);
 
       updateStandings();
       updateScoreForm();
+      updateRoundsLog();
+      document.getElementById('tournament-name').value = '';
+      document.getElementById('is-major').checked = false;
     }
 
     function updateStandings() {
@@ -94,6 +119,17 @@
               <td>${player.scores.join(', ')}</td>
             </tr>`;
         });
+    }
+
+    function updateRoundsLog() {
+      const container = document.getElementById('rounds-history');
+      container.innerHTML = '';
+      rounds.forEach(round => {
+        container.innerHTML += `<h3>${round.name}</h3>`;
+        container.innerHTML += '<ul>' +
+          round.results.map(r => `<li>${r.name}: ${r.score} (Points: ${r.points})</li>`).join('') +
+          '</ul>';
+      });
     }
 
     // Initial setup UI for 4 players
